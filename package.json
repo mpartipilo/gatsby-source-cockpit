@@ -1,16 +1,16 @@
 {
     "name": "gatsby-source-cockpit",
     "description": "Gatsby source plugin for Cockpit headless CMS API.",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "keywords": [
         "gatsby",
         "gatsby-plugin",
         "gatsby-source-plugin"
-      ],
+    ],
     "author": "Michelangelo Partipilo <michelangelo.partipilo@gmail.com>",
     "license": "MIT",
     "dependencies": {
-        "query-string": "^5.0.1",
-        "node-fetch": "^1.7.3"
+        "cockpit-api-client": "^1.0.1",
+        "crypto": "^1.0.1"
     }
-} 
+}
