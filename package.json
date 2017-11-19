@@ -1,7 +1,7 @@
 {
     "name": "gatsby-source-cockpit",
     "description": "Gatsby source plugin for Cockpit headless CMS API.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "keywords": [
         "gatsby",
         "gatsby-plugin",
