@@ -1,4 +1,4 @@
-const cp = require(`./cockpit-api-client`);
+const cp = require(`cockpit-api-client`);
 const crypto = require(`crypto`);
 
 async function getCockpitData({ host, accessToken, collectionName }) {
