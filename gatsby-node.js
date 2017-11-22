@@ -2,11 +2,8 @@ const _ = require(`lodash`)
 const crypto = require(`crypto`);
 const cp = require(`cockpit-api-client`);
 
-const getCockpitData = async ({ host, accessToken, collectionName }) => {
-  const client = new cp.Cockpit({host, accessToken});
-
-  return client.collectionEntries(collectionName);
-}
+/* eslint no-console: 0 */
+/* eslint no-underscore-dangle: 0 */
 
 const digest = (data) => (crypto
   .createHash(`md5`)
@@ -35,54 +32,68 @@ exports.sourceNodes = async ({ boundActionCreators }, pluginOptions) => {
   const { createNode, createParentChildLink } = boundActionCreators;
   const { accessToken, host, collectionName } = pluginOptions;
 
-  /* eslint no-console: 0 */
-  console.time(`Fetching Cockpit Collection ${collectionName}`);
-  console.log(`Fetching Cockpit Collection ${collectionName}`);
+  const client = new cp.Cockpit({ host, accessToken });
   console.log(`Cockpit host: ${host}`);
   console.log(`Cockpit access token: ${accessToken}`);
 
-  // const data = getFakeData(pluginOptions);
-  const data = await getCockpitData(pluginOptions);
+  const assetResponse = await client.assets();
 
-  console.timeEnd(
-    `Fetching Cockpit Collection ${collectionName}`
-  );
+  for (let idx = 0; idx < collectionName.length; idx += 1) {
+    const c = collectionName[idx];
+    console.time(`Fetching Cockpit Collection ${c}`);
+    console.log(`Fetching Cockpit Collection ${c}`);
 
-  // Process data into nodes.
-  data.entries.forEach(i => {
-    const entry = 
-      Object.keys(data.fields)
-      .map(f => data.fields[f].name)
-      .reduce((x, y) => ({ ...x, [y]: i[y] }), {})
+    // const data = getFakeData(pluginOptions);
+    const data = await client.collectionEntries(c);
 
-    const properties = 
-      Object.keys(i)
-      .filter(f => !data.fields[f])
-      .reduce((x, y) => ({ ...x, [y]: i[y] }), {})
+    // Process data into nodes.
+    data.entries.forEach(i => {
+      const entry =
+        Object.keys(data.fields)
+          .map(f => data.fields[f].name)
+          .reduce((x, y) => ({ ...x, [y]: i[y] }), {})
 
-    const node = {
-      entry: { ...entry },
-      properties: { ...properties },
-      host,
+      const properties =
+        Object.keys(i)
+          .filter(f => !data.fields[f])
+          .reduce((x, y) => ({ ...x, [y]: i[y] }), {})
 
-      // eslint-disable-next-line
-      id: i._id,
-      parent: null, // or null if it's a source node without a parent
-      children: [],
-      internal: {
-        type: `Cockpit${collectionName}`,
-        contentDigest: digest(i)
+      const node = {
+        entry: { ...entry },
+        properties: { ...properties },
+        host,
+
+        // eslint-disable-next-line
+        id: i._id,
+        parent: null, // or null if it's a source node without a parent
+        children: [],
+        internal: {
+          type: `Cockpit${c}`,
+          contentDigest: digest(i)
+        }
       }
-    }
 
-    createNode(node);
-    
-    Object.keys(data.fields)
-      .filter(f => data.fields[f].type === `markdown`)
-      .forEach(f => {
-        const textNode = createTextNode(node, data.fields[f].name, node.entry[f], createNode)
-        createNode(textNode);
-        createParentChildLink({ parent: node, child: textNode })
-      });
-  });
-};
+      createNode(node);
+
+      Object.keys(data.fields)
+        .forEach(f => {
+          if (data.fields[f].type === `gallery`) {
+            node.entry[f].forEach(image => {
+              if (image.meta.asset) {
+                image.meta.asset = assetResponse.assets.find(a => a._id === image.meta.asset)
+              }
+            });
+          }
+          if (data.fields[f].type === `markdown`) {
+            const textNode = createTextNode(node, data.fields[f].name, node.entry[f], createNode)
+            createNode(textNode);
+            createParentChildLink({ parent: node, child: textNode })
+          }
+        });
+    });
+
+    console.timeEnd(
+      `Fetching Cockpit Collection ${c}`
+    );
+  }
+}
