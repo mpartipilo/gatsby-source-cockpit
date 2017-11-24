@@ -4,6 +4,7 @@ const cp = require(`cockpit-api-client`);
 
 /* eslint no-console: 0 */
 /* eslint no-underscore-dangle: 0 */
+/* eslint no-await-in-loop: 0 */
 
 const digest = (data) => (crypto
   .createHash(`md5`)
@@ -47,7 +48,7 @@ exports.sourceNodes = async ({ boundActionCreators }, pluginOptions) => {
     const data = await client.collectionEntries(c);
 
     // Process data into nodes.
-    data.entries.forEach(i => {
+    await data.entries.forEach(async i => {
       const entry =
         Object.keys(data.fields)
           .map(f => data.fields[f].name)
@@ -73,23 +74,43 @@ exports.sourceNodes = async ({ boundActionCreators }, pluginOptions) => {
         }
       }
 
-      createNode(node);
-
-      Object.keys(data.fields)
-        .forEach(f => {
+      await Object.keys(data.fields)
+        .forEach(async f => {
           if (data.fields[f].type === `gallery`) {
-            node.entry[f].forEach(image => {
+            node.entry[f].forEach(async image => {
               if (image.meta.asset) {
-                image.meta.asset = assetResponse.assets.find(a => a._id === image.meta.asset)
+                const assetDetails = assetResponse.assets.find(a => a._id === image.meta.asset)
+                const {_id,width,height} = assetDetails;
+                const sizes = {
+                  s2: {
+                    width: Math.floor(width / 3),
+                    height: Math.floor(height / 3),
+                  },
+                  s3: {
+                    width: Math.floor(width / 2),
+                    height: Math.floor(height / 2),
+                  }
+                }
+                image.meta.asset = assetDetails;
+                image.thumb2 = {
+                  src: await client.image(_id, sizes.s2),
+                  ...sizes.s2
+                };
+                image.thumb3 = {
+                  src: await client.image(_id, sizes.s3),
+                  ...sizes.s3
+                };
               }
             });
           }
           if (data.fields[f].type === `markdown`) {
             const textNode = createTextNode(node, data.fields[f].name, node.entry[f], createNode)
             createNode(textNode);
-            createParentChildLink({ parent: node, child: textNode })
+            node.children.push(textNode.id);
           }
         });
+      
+      createNode(node);
     });
 
     console.timeEnd(
