@@ -1,17 +1,13 @@
 const _ = require(`lodash`)
-const crypto = require(`crypto`);
-const cp = require(`cockpit-api-client`);
-
-/* eslint no-console: 0 */
-/* eslint no-underscore-dangle: 0 */
-/* eslint no-await-in-loop: 0 */
+const crypto = require(`crypto`)
+const cp = require(`cockpit-api-client`)
 
 const digest = (data) => (crypto
   .createHash(`md5`)
   .update(JSON.stringify(data))
-  .digest(`hex`));
+  .digest(`hex`))
 
-function createTextNode(node, key, text) {
+function createTextNode (node, key, text) {
   const str = _.isString(text) ? text : ` `
   const textNode = {
     id: `${node.id}${key}TextNode`,
@@ -22,34 +18,34 @@ function createTextNode(node, key, text) {
       type: _.camelCase(`${node.internal.type} ${key} TextNode`),
       mediaType: `text/markdown`,
       content: str,
-      contentDigest: digest(str),
-    },
+      contentDigest: digest(str)
+    }
   }
 
   return textNode
 }
 
 exports.sourceNodes = async ({ boundActionCreators, getNode, hasNodeChanged, reporter }, pluginOptions) => {
-  const { createNode, createParentChildLink } = boundActionCreators;
-  const { accessToken, host, collectionName } = pluginOptions;
+  const { createNode } = boundActionCreators
+  const { accessToken, host, collectionName } = pluginOptions
 
-  const client = new cp.Cockpit({ host, accessToken });
-  reporter.info(`Cockpit host: ${host}`);
-  reporter.info(`Cockpit access token: ${accessToken}`);
+  const client = new cp.Cockpit({ host, accessToken })
+  reporter.info(`Cockpit host: ${host}`)
+  reporter.info(`Cockpit access token: ${accessToken}`)
 
-  const spinner = reporter.activity();
-  spinner.tick(`Fetching list of assets`);
-  const assetResponse = await client.assets();
-  spinner.tick(`Assets retrieved`);
+  const spinner = reporter.activity()
+  spinner.tick(`Fetching list of assets`)
+  const assetResponse = await client.assets()
+  spinner.tick(`Assets retrieved`)
 
   for (let idx = 0; idx < collectionName.length; idx += 1) {
-    const c = collectionName[idx];
-    spinner.tick(`Fetching Cockpit Collection ${c}`);
+    const c = collectionName[idx]
+    spinner.tick(`Fetching Cockpit Collection ${c}`)
     // const data = getFakeData(pluginOptions);
-    const data = await client.collectionEntries(c);
-    spinner.tick(`Collection retrieved: ${c}`);
+    const data = await client.collectionEntries(c)
+    spinner.tick(`Collection retrieved: ${c}`)
 
-    spinner.tick(`Processing collection: ${c}`);
+    spinner.tick(`Processing collection: ${c}`)
     // Process data into nodes.
     await data.entries.forEach(async i => {
       const entry =
@@ -83,40 +79,40 @@ exports.sourceNodes = async ({ boundActionCreators, getNode, hasNodeChanged, rep
             node.entry[f].forEach(async image => {
               if (image.meta.asset) {
                 const assetDetails = assetResponse.assets.find(a => a._id === image.meta.asset)
-                const {_id,width,height} = assetDetails;
+                const {_id, width, height} = assetDetails
                 const sizes = {
                   s2: {
                     width: Math.floor(width / 3),
-                    height: Math.floor(height / 3),
+                    height: Math.floor(height / 3)
                   },
                   s3: {
                     width: Math.floor(width / 2),
-                    height: Math.floor(height / 2),
+                    height: Math.floor(height / 2)
                   }
                 }
-                image.meta.asset = assetDetails;
+                image.meta.asset = assetDetails
                 image.thumb2 = {
                   src: await client.image(_id, sizes.s2),
                   ...sizes.s2
-                };
+                }
                 image.thumb3 = {
                   src: await client.image(_id, sizes.s3),
                   ...sizes.s3
-                };
+                }
               }
-            });
+            })
           }
           if (data.fields[f].type === `markdown`) {
             const textNode = createTextNode(node, data.fields[f].name, node.entry[f], createNode)
-            createNode(textNode);
-            node.children.push(textNode.id);
+            createNode(textNode)
+            node.children.push(textNode.id)
           }
-        });
-      
-      createNode(node);
-    });
-    spinner.tick(`Finished processing Collection: ${c}`);
+        })
+
+      createNode(node)
+    })
+    spinner.tick(`Finished processing Collection: ${c}`)
   }
-  reporter.success(`Finished processing all collections`);
-  spinner.end();
+  reporter.success(`Finished processing all collections`)
+  spinner.end()
 }
