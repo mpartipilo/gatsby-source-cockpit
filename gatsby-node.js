@@ -29,24 +29,27 @@ function createTextNode(node, key, text) {
   return textNode
 }
 
-exports.sourceNodes = async ({ boundActionCreators }, pluginOptions) => {
+exports.sourceNodes = async ({ boundActionCreators, getNode, hasNodeChanged, reporter }, pluginOptions) => {
   const { createNode, createParentChildLink } = boundActionCreators;
   const { accessToken, host, collectionName } = pluginOptions;
 
   const client = new cp.Cockpit({ host, accessToken });
-  console.log(`Cockpit host: ${host}`);
-  console.log(`Cockpit access token: ${accessToken}`);
+  reporter.info(`Cockpit host: ${host}`);
+  reporter.info(`Cockpit access token: ${accessToken}`);
 
+  const spinner = reporter.activity();
+  spinner.tick(`Fetching list of assets`);
   const assetResponse = await client.assets();
+  spinner.tick(`Assets retrieved`);
 
   for (let idx = 0; idx < collectionName.length; idx += 1) {
     const c = collectionName[idx];
-    console.time(`Fetching Cockpit Collection ${c}`);
-    console.log(`Fetching Cockpit Collection ${c}`);
-
+    spinner.tick(`Fetching Cockpit Collection ${c}`);
     // const data = getFakeData(pluginOptions);
     const data = await client.collectionEntries(c);
+    spinner.tick(`Collection retrieved: ${c}`);
 
+    spinner.tick(`Processing collection: ${c}`);
     // Process data into nodes.
     await data.entries.forEach(async i => {
       const entry =
@@ -112,9 +115,8 @@ exports.sourceNodes = async ({ boundActionCreators }, pluginOptions) => {
       
       createNode(node);
     });
-
-    console.timeEnd(
-      `Fetching Cockpit Collection ${c}`
-    );
+    spinner.tick(`Finished processing Collection: ${c}`);
   }
+  reporter.success(`Finished processing all collections`);
+  spinner.end();
 }
