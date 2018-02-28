@@ -33,21 +33,30 @@ exports.sourceNodes = async ({ boundActionCreators, getNode, hasNodeChanged, rep
   reporter.info(`Cockpit host: ${host}`)
   reporter.info(`Cockpit access token: ${accessToken}`)
 
-  const spinner = reporter.activity()
-  spinner.tick(`Fetching list of assets`)
+  reporter.info(`Fetching list of assets`)
   const assetResponse = await client.assets()
-  spinner.tick(`Assets retrieved`)
+  reporter.info(`Assets retrieved: Found ${assetResponse.assets.length} assets`)
 
-  for (let idx = 0; idx < collectionName.length; idx += 1) {
+  reporter.info(`Specified Collections:`)
+  reporter.list(`collection names`, collectionName)
+  
+  const collectionLength = collectionName.length;
+  const tick = reporter.progress(collectionLength);
+  for (let idx = 0; idx < collectionLength; idx += 1) {
     const c = collectionName[idx]
-    spinner.tick(`Fetching Cockpit Collection ${c}`)
+    reporter.info(`Fetching Cockpit Collection ${c}`)
+    tick()
     // const data = getFakeData(pluginOptions);
     const data = await client.collectionEntries(c)
-    spinner.tick(`Collection retrieved: ${c}`)
+    reporter.info(`Collection retrieved: ${c}`)
 
-    spinner.tick(`Processing collection: ${c}`)
+    reporter.info(`Processing collection: ${c}`)
+
+    const subtick = reporter.progress(data.entries.length);
     // Process data into nodes.
     await data.entries.forEach(async i => {
+      subtick()
+
       const entry =
         Object.keys(data.fields)
           .map(f => data.fields[f].name)
@@ -111,8 +120,7 @@ exports.sourceNodes = async ({ boundActionCreators, getNode, hasNodeChanged, rep
 
       createNode(node)
     })
-    spinner.tick(`Finished processing Collection: ${c}`)
+    reporter.info(`Finished processing Collection: ${c}`)
   }
   reporter.success(`Finished processing all collections`)
-  spinner.end()
 }
