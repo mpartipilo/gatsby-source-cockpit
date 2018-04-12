@@ -1,3 +1,22 @@
 {
-    "extends": "standard"
-}
+    "extends": ["airbnb", "prettier"],
+    "plugins": ["react", "jsx-a11y", "import", "prettier"],
+    "rules": {
+      "react/prefer-stateless-function": "off",
+      "react/prop-types": "off",
+      "react/no-danger": "off",
+      "prettier/prettier": ["error", {"tabWidth": 2}],
+      "react/jsx-indent": 0,
+      "react/jsx-indent-props": 0,
+      "no-underscore-dangle": 0
+    },
+    "settings": {
+      "import/core-modules": []
+    },
+    "env": {
+      "browser": true,
+      "node": true,
+      "es6": true
+    }
+  }
+  
