@@ -27,7 +27,7 @@ function createTextNode(node, key, text) {
 }
 
 exports.sourceNodes = async (
-  { boundActionCreators, getNode, hasNodeChanged, reporter },
+  { boundActionCreators, reporter },
   pluginOptions
 ) => {
   const { createNode } = boundActionCreators;
@@ -46,50 +46,42 @@ exports.sourceNodes = async (
   reporter.info(`Specified Collections:`);
   reporter.list(`collection names`, collectionName);
 
-  const collectionLength = collectionName.length;
-  const tick = reporter.progress(collectionLength);
-  for (let idx = 0; idx < collectionLength; idx += 1) {
-    const c = collectionName[idx];
+  const tick = reporter.progress(collectionName.length);
+
+  for (const c of collectionName) {
     reporter.info(`Fetching Cockpit Collection ${c}`);
     tick();
-    // const data = getFakeData(pluginOptions);
+
     const data = await client.collectionEntries(c);
     reporter.info(`Collection retrieved: ${c}`);
 
-    reporter.info(`Processing collection: ${c}`);
-
+    reporter.info(`Processing collection entries for: ${c}`);
     const subtick = reporter.progress(data.entries.length);
     // Process data into nodes.
-    const nodes = await Promise.all(
-      data.entries.map(async i => {
-        subtick();
+    await data.entries.forEach(async i => {
+      subtick();
 
-        const entry = Object.keys(data.fields)
-          .map(f => data.fields[f].name)
-          .reduce((x, y) => ({ ...x, [y]: i[y] }), {});
+      const entry = Object.keys(data.fields)
+        .map(f => data.fields[f].name)
+        .reduce((x, y) => ({ ...x, [y]: i[y] }), {});
 
-        const properties = Object.keys(i)
-          .filter(f => !data.fields[f])
-          .reduce((x, y) => ({ ...x, [y]: i[y] }), {});
+      const properties = Object.keys(i)
+        .filter(f => !data.fields[f])
+        .reduce((x, y) => ({ ...x, [y]: i[y] }), {});
 
-        return {
-          entry: { ...entry },
-          properties: { ...properties },
-          host,
+      const node = {
+        entry: { ...entry },
+        properties: { ...properties },
+        host,
+        id: i._id,
+        parent: null,
+        children: [],
+        internal: {
+          type: `Cockpit${c}`,
+          contentDigest: digest(i)
+        }
+      };
 
-          // eslint-disable-next-line
-          id: i._id,
-          parent: null, // or null if it's a source node without a parent
-          children: [],
-          internal: {
-            type: `Cockpit${c}`,
-            contentDigest: digest(i)
-          }
-        };
-      })
-    );
-
-    await nodes.forEach(async node => {
       await Object.keys(data.fields).forEach(async f => {
         if (data.fields[f].type === `gallery`) {
           await node.entry[f].forEach(async image => {
@@ -132,9 +124,11 @@ exports.sourceNodes = async (
         }
       });
 
+      reporter.info(`Creating node: ${node.id}`);
       createNode(node);
     });
-    reporter.info(`Finished processing Collection: ${c}`);
+    reporter.info(`Finished processing collection entries for: ${c}`);
   }
+
   reporter.success(`Finished processing all collections`);
 };
